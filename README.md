@@ -1,5 +1,6 @@
 # InkyKeys
 ### Type using nothing but your MacBook's touchpad
+(WARNING: Completely useless!)
 
 ## Requirements
 * MacBook model with haptic touchpad
