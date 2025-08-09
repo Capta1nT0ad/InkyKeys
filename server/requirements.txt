@@ -1,0 +1,16 @@
+eventlet
+Flask
+Flask-SocketIO
+
+# Indirect dependencies
+click
+dnspython
+greenlet
+itsdangerous
+Jinja2
+MarkupSafe
+monotonic
+python-engineio
+python-socketio
+six
+Werkzeug

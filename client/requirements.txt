@@ -1,0 +1,6 @@
+python-socketio==5.13.0
+websocket-client
+pillow
+google-genai
+pydantic
+python-dotenv
