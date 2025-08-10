@@ -1,5 +1,13 @@
 import socketio
 import time
+import logging
+
+logging.basicConfig(
+    level=logging.INFO,
+    datefmt="%d/%m/%y %H:%M:%S",
+    format="%(asctime)s (%(filename)s) [%(levelname)s]: %(message)s",
+    force=True
+)
 
 punctuation_js_keycodes = {
     '.': (190, False),
@@ -39,45 +47,53 @@ SPECIAL_KEYS = {
     '!BACKSPACE!': (8, False),
 }
 
+sio = socketio.Client()
+
+def setup_socketio(server):
+    if not sio.connected:
+        sio.connect(server)
+
 def send_string(text, server):
-    sio = socketio.Client()
-    sio.connect(server)
 
-    i = 0
-    while i < len(text):
-        for token, (key_code, shift) in SPECIAL_KEYS.items():
-            token_len = len(token)
-            if text[i:i+token_len] == token:
-                keystroke_data = {
-                    'metaKey': False,
-                    'altKey': False,
-                    'shiftKey': shift,
-                    'ctrlKey': False,
-                    'key': token,
-                    'keyCode': key_code,
-                    'location': None,
-                }
-                sio.emit('keystroke', keystroke_data)
-                time.sleep(0.02)
-                i += token_len
-                break
+    logging.debug("Sending text '%s' to server: %s", text, server)
+
+    setup_socketio(server)
+
+    if text in SPECIAL_KEYS:
+        key_code, shift = SPECIAL_KEYS[text]
+        logging.debug("Found special token '%s' >> keycode %s", text, key_code)
+        keystroke_data = {
+            'metaKey': False,
+            'altKey': False,
+            'shiftKey': shift,
+            'ctrlKey': False,
+            'key': text,
+            'keyCode': key_code,
+            'location': None,
+        }
+        logging.debug("Sending: %s", str(keystroke_data))
+        sio.emit('keystroke', keystroke_data)
+        time.sleep(0.02)
+        
+        return
+
+    for char in text:
+        if char in punctuation_js_keycodes:
+            key_code, shift_key = punctuation_js_keycodes[char]
+            logging.debug("Found punctuation token '%s' >> keycode %s", char, key_code)
         else:
-            char = text[i]
-            if char in punctuation_js_keycodes:
-                key_code, shift_key = punctuation_js_keycodes[char]
-            else:
-                key_code = ord(char.upper())
-                shift_key = char.isupper()
+            key_code = ord(char.upper())
+            shift_key = char.isupper()
 
-            keystroke_data = {
-                'metaKey': False,
-                'altKey': False,
-                'shiftKey': shift_key,
-                'ctrlKey': False,
-                'key': char,
-                'keyCode': key_code,
-                'location': None,
-            }
-            sio.emit('keystroke', keystroke_data)
-            time.sleep(0.02)
-            i += 1
+        keystroke_data = {
+            'metaKey': False,
+            'altKey': False,
+            'shiftKey': shift_key,
+            'ctrlKey': False,
+            'key': char,
+            'keyCode': key_code,
+            'location': None,
+        }
+        logging.debug("Sending: %s", str(keystroke_data))
+        sio.emit('keystroke', keystroke_data)
+        time.sleep(0.02)

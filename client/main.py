@@ -1,13 +1,29 @@
 from io import BytesIO
 import json
+import sys
+import os
+from pathlib import Path
+import logging
+import signal
 
 from google import genai
 from google.genai import types
 from pydantic import BaseModel
 from dotenv import dotenv_values
-
+from mac_notifications import client
 from read import capture_touch
 from keystroke import send_string
+
+
+logging.basicConfig(
+    level=logging.INFO,
+    datefmt="%d/%m/%y %H:%M:%S",
+    format="%(asctime)s (%(filename)s) [%(levelname)s]: %(message)s",
+    force=True
+)
+
+logging.getLogger("google_genai").setLevel(logging.WARNING)
+logging.getLogger("httpx").setLevel(logging.WARNING)
 
 
 class Format(BaseModel):
@@ -15,11 +31,15 @@ class Format(BaseModel):
     chars_content: str
 
 
-def main(apikey, server):
+def quit():
+    os.kill(os.getpid(), signal.SIGINT)
 
-    print("start writing")
+
+def main(apikey, server, notif_client):
+
+    logging.info("Ready.")
+    notif_client.create_notification(title='Ready', text="Start writing.", icon=None, sound=None, action_button_str="Quit", action_callback=quit)
     img = capture_touch(timeout=0.8)
-    print("stand by\n")
 
     buffer = BytesIO()
     img.save(buffer, format='PNG')
@@ -27,6 +47,9 @@ def main(apikey, server):
 
     img = buffer.getvalue()
     buffer.close()
+
+    logging.info("Recognising text...")
+    notif_client.create_notification(title='Stand by', text="Recognising text...", icon=Path(__file__).parent / "last_drawing.png", sound=None, action_button_str="Quit", action_callback=quit)
 
     client = genai.Client(api_key=apikey)
 
@@ -126,11 +149,12 @@ def main(apikey, server):
     out_data = json.loads(out_data)
     if out_data[0]["is_char_present"]:
         letters = out_data[0]["chars_content"]
-        print(letters)
+        notif_client.create_notification(title='Typing...',text=f"'{letters}'", icon=Path(__file__).parent / "last_drawing.png", sound=None, action_button_str="Quit", action_callback=quit)
+        logging.info("Found text! >> '%s'", letters)
         send_string(letters, server)
         
     else:
-        print(None)
+        logging.info("Did not find any text.")
 
     print()
 
@@ -142,4 +166,4 @@ if __name__ == "__main__":
     server = config["KEYSTROKE_SERVER"]
 
     while True:
-        main(apikey, server)
+        main(apikey, server, client)
