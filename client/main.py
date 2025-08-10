@@ -18,7 +18,7 @@ class Format(BaseModel):
 def main(apikey, server):
 
     print("start writing")
-    img = capture_touch(timeout=0.5)
+    img = capture_touch(timeout=0.8)
     print("stand by\n")
 
     buffer = BytesIO()
@@ -41,12 +41,81 @@ def main(apikey, server):
           ),
         ],
         config={
-            "system_instruction": """You will receive an image file with digitally handwritten content.
-            Write using the json schema whether characters are present and the string which the characters are.
-            If the user writes a long straight line across the very bottom, output that there is a character present and for the string write a space as in " ".
-            If the user writes a long diagonal line from one corner to another, output that there is a character present and for the string write "!BACKSPACE!".
-            If the user writes a long straight line across the very right or left sides, output that there is a character present and for the string write "!RETURN!".
-            However, do not mistake these for dashes, underscores or slashes et cetera.""",
+            "system_instruction": """You will receive an image file containing digitally handwritten content.  
+            Your task is to output a JSON object with the following fields:
+
+            {
+              "is_char_present": <boolean>,   // true if any recognisable character or special gesture is present
+              "chars_content": <string>       // the interpreted text or special command
+            }
+
+            ### Detection Rules (apply in this exact order):
+
+            1. **Special Gestures (take priority over normal character recognition)**  
+                - If the image shows **only** a long, straight horizontal line across the very bottom → `"chars_content": " "`  
+                - If the image shows **only** a long, straight diagonal line from one corner to the other → `"chars_content": "!BACKSPACE!"` 
+                    (NOTE: This does NOT mean just "!", it means the full text "!BACKSPACE!")
+                - If the image shows **only** a long, straight vertical line along the far left or far right edge → `"chars_content": "!RETURN!"`  
+
+            2. **Normal Character Recognition**  
+               - If letters, numbers, punctuation, or symbols are present, output them in reading order.  
+               - Preserve all spaces between words. Do **not** add a space at the end.  
+               - If there are multiple lines, combine them in order from top to bottom, inserting a single space between lines.  
+               - There may also be single punctuation, e.g. ",", "." or "!". Output the punctuation as usual.
+
+            3. **Empty or Unintelligible Image**  
+               - If no recognisable characters or gestures are present →  
+                 `"is_char_present": false` and `"chars_content": ""`  
+
+            ### Examples:
+
+            **Example 1**  
+            Image text:  
+                `This is` (top line)  
+                `a test` (bottom line)  
+            → Output:  
+            ```json
+            {"is_char_present": true, "chars_content": "This is a test"}
+            ```
+
+            **Example 2**  
+            Image text:  
+                `Example text` (only line)  
+            → Output:  
+            ```json
+            {"is_char_present": true, "chars_content": "This is a test"}
+            ```
+
+            **Example 3**  
+            Image text:  
+                `A` (only line)  
+            → Output:  
+            ```json
+            {"is_char_present": true, "chars_content": "A"}
+            ```
+
+            **Example 4**  
+            Image content: ONLY a long straight line across the bottom edge
+            → Output:  
+            ```json
+            {"is_char_present": true, "chars_content": " "}
+            ```
+
+            **Example 5**  
+            Image content: ONLY a long diagonal line corner-to-corner
+            → Output:  
+            ```json
+            {"is_char_present": true, "chars_content": "!BACKSPACE!"} 
+            ``` (DO NOT interpret as !, then backspace, then ! leaving only "!", rather it is the FULL TEXT "!BACKSPACE!")
+            
+            **Example 6**  
+            Image content: ONLY a long straight line across the far right edge
+            → Output:  
+            ```json
+            {"is_char_present": true, "chars_content": "!RETURN!"}
+            ```
+
+            """,
             "response_mime_type": "application/json",
             "response_schema": list[Format],
         }
