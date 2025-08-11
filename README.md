@@ -15,7 +15,7 @@ On both devices:
 
 On MacBook:
 * `cd client`
-* `nano .env` >> add API_KEY=your_gemini_api_key and KEYSTROKE_SERVER=https://raspberrypi:8000 or similar
+* `nano ~/.config/inkykeys.env` >> add API_KEY=your_gemini_api_key and KEYSTROKE_SERVER=https://raspberrypi:8000 or similar
 * `pip install -r requirements.txt`
 * `python3 main.py`
 

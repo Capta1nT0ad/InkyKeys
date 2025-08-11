@@ -9,3 +9,5 @@ DerivedData/
 .env
 last_drawing.png
 __pycache__
+build
+venv

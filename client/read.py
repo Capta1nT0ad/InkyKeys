@@ -70,6 +70,8 @@ def capture_touch(timeout=1.0, width=800, height=600, cmd='./read'):
 
 
 if __name__ == "__main__":
-    img = capture_touch()
-    img.save("out.png")
-    print("Saved to out.png")
+    while True:
+        img = capture_touch(timeout=1.5)
+        img.save("out.png")
+        print("Saved to out.png")
+        input()

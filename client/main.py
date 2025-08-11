@@ -31,14 +31,10 @@ class Format(BaseModel):
     chars_content: str
 
 
-def quit():
-    os.kill(os.getpid(), signal.SIGINT)
-
-
 def main(apikey, server, notif_client):
 
     logging.info("Ready.")
-    notif_client.create_notification(title='Ready', text="Start writing.", icon=None, sound=None, action_button_str="Quit", action_callback=quit)
+    notif_client.create_notification(title='Ready', text="Start writing.", icon=None, sound=None, action_button_str="Quit", action_callback=lambda *_: (os.killpg(0, signal.SIGTERM), os._exit(0)))
     img = capture_touch(timeout=0.8)
 
     buffer = BytesIO()
@@ -49,7 +45,7 @@ def main(apikey, server, notif_client):
     buffer.close()
 
     logging.info("Recognising text...")
-    notif_client.create_notification(title='Stand by', text="Recognising text...", icon=Path(__file__).parent / "last_drawing.png", sound=None, action_button_str="Quit", action_callback=quit)
+    notif_client.create_notification(title='Stand by', text="Recognising text...", icon=Path(__file__).parent / "last_drawing.png", sound=None, action_button_str="Quit", action_callback=lambda: os._exit(0))
 
     client = genai.Client(api_key=apikey)
 
@@ -149,7 +145,7 @@ def main(apikey, server, notif_client):
     out_data = json.loads(out_data)
     if out_data[0]["is_char_present"]:
         letters = out_data[0]["chars_content"]
-        notif_client.create_notification(title='Typing...',text=f"'{letters}'", icon=Path(__file__).parent / "last_drawing.png", sound=None, action_button_str="Quit", action_callback=quit)
+        notif_client.create_notification(title='Typing...',text=f"'{letters}'", icon=Path(__file__).parent / "last_drawing.png", sound=None, action_button_str="Quit", action_callback=lambda: os._exit(0))
         logging.info("Found text! >> '%s'", letters)
         send_string(letters, server)
         
@@ -161,9 +157,15 @@ def main(apikey, server, notif_client):
 
 if __name__ == "__main__":
 
-    config = dotenv_values(".env")
-    apikey = config["API_KEY"]
-    server = config["KEYSTROKE_SERVER"]
+    try:
+        config = dotenv_values(Path("~/.config/inkykeys.env").expanduser())
+        apikey = config["API_KEY"]
+        server = config["KEYSTROKE_SERVER"]
 
-    while True:
-        main(apikey, server, client)
+        while True:
+            main(apikey, server, client)
+    
+    except Exception as e:
+        logging.exception("Unhandled exception! %s.", e)
+        client.create_notification(title='Fatal error', text=str(e), sound=None)
+        os.killpg(os.getpid(), signal.SIGABRT)
